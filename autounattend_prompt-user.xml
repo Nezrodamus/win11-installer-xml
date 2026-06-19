@@ -84,6 +84,16 @@
             </RunSynchronous>
 
             <UserData>
+                <!-- Generic Windows 11 PRO edition key. This is a Microsoft-published
+                     placeholder, NOT a license: it only tells Setup which edition to
+                     install and skips the "enter a product key" page during an
+                     unattended install. The machine activates automatically from its
+                     existing digital license once online (e.g. a Win10 Pro -> Win11 Pro
+                     entitlement). For HOME machines, swap in: YTMG3-N6DKC-DKB77-7M9GH-8HVX7 -->
+                <ProductKey>
+                    <Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T</Key>
+                    <WillShowUI>Never</WillShowUI>
+                </ProductKey>
                 <AcceptEula>true</AcceptEula>
                 <FullName>User</FullName>
                 <Organization></Organization>
