@@ -15,7 +15,8 @@ MediaCreationTool*
 # The generated file that gets written onto the USB stick
 autounattend.xml
 
-# Old plain-text notes (superseded by README.md)
+# Internal/technical documentation (not for end users)
+docs/
 README.txt
 
 # Editor / assistant scratch and local notes
