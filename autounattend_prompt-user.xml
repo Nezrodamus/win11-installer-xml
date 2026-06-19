@@ -254,7 +254,35 @@
                          Family Safety, Game Pass, and parental controls. Removing it breaks Store
                          sign-in for the life of the install. Xbox *Game* surfaces (overlays, GamingApp)
                          are safe to remove. -->
-                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -Command "Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match 'Clipchamp|BingNews|BingWeather|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Cortana|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|Xbox.TCUI|OutlookForWindows' } | Remove-AppxProvisionedPackage -Online" 2>nul</CommandLine>
+                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$p='Clipchamp|BingNews|BingWeather|BingSearch|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Xbox.TCUI|549981C3F5F10|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|OutlookForWindows|MicrosoftOfficeHub|PowerAutomateDesktop|WindowsMaps|Microsoft.People|Microsoft.Wallet|MicrosoftJournal|Whiteboard|SkypeApp|WindowsFeedbackHub|DevHome|Microsoft.Copilot|LinkedIn|WhatsApp|CandyCrush|king.com|Spotify|Disney|Facebook|Instagram|TikTok|Twitter|Netflix|PrimeVideo|Dolby'; Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match $p } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue; Get-AppxPackage -AllUsers | Where-Object { $_.Name -match $p } | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue" 2>nul</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>21</Order>
+                    <!-- Block cloud-delivered "suggested"/promoted apps machine-wide
+                         (LinkedIn, WhatsApp, Candy Crush, Spotify, TikTok, etc.). These
+                         are NOT in the install image; Windows downloads them on first
+                         login via Content Delivery Manager unless these policies are set. -->
+                    <CommandLine>cmd /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableConsumerAccountStateContent" /t REG_DWORD /d 1 /f &amp; reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableCloudOptimizedContent" /t REG_DWORD /d 1 /f &amp; reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableSoftLanding" /t REG_DWORD /d 1 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>22</Order>
+                    <!-- Turn off Content Delivery Manager auto-installs and suggestions. -->
+                    <CommandLine>cmd /c reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "ContentDeliveryAllowed" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEnabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEverEnabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "FeatureManagementEnabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SubscribedContent-310093Enabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SubscribedContent-338393Enabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SubscribedContent-353694Enabled" /t REG_DWORD /d 0 /f &amp; reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SubscribedContent-353696Enabled" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>23</Order>
+                    <!-- Remove OneDrive: disable the sync engine by policy, drop its
+                         per-user setup Run entry, and uninstall the setup stub. -->
+                    <CommandLine>cmd /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v "DisableFileSyncNGSC" /t REG_DWORD /d 1 /f &amp; reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f 2>nul &amp; if exist "%SystemRoot%\SysWOW64\OneDriveSetup.exe" "%SystemRoot%\SysWOW64\OneDriveSetup.exe" /uninstall &amp; if exist "%SystemRoot%\System32\OneDriveSetup.exe" "%SystemRoot%\System32\OneDriveSetup.exe" /uninstall</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>24</Order>
+                    <!-- Disable Start-menu app promotions and Windows Copilot. -->
+                    <CommandLine>cmd /c reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "Start_IrisRecommendations" /t REG_DWORD /d 0 /f &amp; reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v "TurnOffWindowsCopilot" /t REG_DWORD /d 1 /f &amp; reg add "HKCU\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" /v "TurnOffWindowsCopilot" /t REG_DWORD /d 1 /f</CommandLine>
                 </SynchronousCommand>
 
             </FirstLogonCommands>
