@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------
+# Only these belong in this repo:
+#   START HERE.bat, autounattend_predefined-user.xml,
+#   autounattend_prompt-user.xml, README.md, .gitignore
+# Everything below is ignored on purpose.
+# ---------------------------------------------------------------
+
+# Large install media and tools (never commit — they are huge)
+*.iso
+*.esd
+*.wim
+*.exe
+MediaCreationTool*
+
+# The generated file that gets written onto the USB stick
+autounattend.xml
+
+# Old plain-text notes (superseded by README.md)
+README.txt
+
+# Editor / assistant scratch and local notes
+CLAUDE.md
+.claude/
+.cursor/
+.vscode/
+memory/
+*.log
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

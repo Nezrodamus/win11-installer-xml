@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ════════════════════════════════════════════════════════════════════
+    CTC Unattended Windows 11 Install - PROMPT USER variant
+    ════════════════════════════════════════════════════════════════════
+
+    PURPOSE
+        Unattended Win11 install that prompts for a username during
+        the OOBE account-creation step. All bypasses, telemetry
+        disables, and bloatware stripping still happen automatically.
+        Use when you're delivering the machine to a specific person
+        and want their preferred name on the account from day one.
+
+        For the variant that creates a "User" account silently with
+        no prompt, see autounattend_predefined-user.xml.
+
+    USAGE
+        Rename a copy of this file to "autounattend.xml" and put it
+        on the ROOT of a Windows 11 install USB. See README.txt in
+        this folder for the full build flow.
+
+    WHAT IT DOES
+        windowsPE pass    Bypasses TPM / Secure Boot / RAM / CPU /
+                          Storage / MoSetup checks so older hardware
+                          installs cleanly.
+        specialize pass   Sets timezone, disables CEIP, computer name
+                          auto-generated.
+        oobeSystem pass   Skips online-account screens, EULA, OEM
+                          registration, and wireless. PROMPTS user to
+                          enter a local account name during setup.
+                          Runs FirstLogonCommands of registry tweaks
+                          to disable telemetry, ads, Cortana, etc.
+
+    LOCAL-ACCOUNT NOTE
+        HideOnlineAccountScreens=true keeps OOBE from forcing a
+        Microsoft Account. The user creates a LOCAL account in OOBE.
+        Customers can still sign into Word / Excel / Store with a
+        personal MSA AFTER install because the auth broker
+        (XboxIdentityProvider) is intentionally NOT removed - see
+        FirstLogonCommand #20 below for the regex.
+
+    IF YOU EDIT THIS FILE
+        Do NOT add "XboxIdentityProvider" back into the FirstLogon
+        regex. It is the Live ID / MSA token broker, not a game app.
+        Removing it breaks Store / OneDrive Personal / Office MSA
+        sign-in for the life of the install.
+-->
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+
+    <!-- ═══════════════════════════════════════════════════════════
+         WINDOWS PREINSTALLATION ENVIRONMENT (WinPE)
+         ═══════════════════════════════════════════════════════════ -->
+    <settings pass="windowsPE">
+
+        <component name="Microsoft-Windows-Setup" processorArchitecture="amd64"
+                   publicKeyToken="31bf3856ad364e35" language="neutral"
+                   versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+
+            <RunSynchronous>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>1</Order>
+                    <Path>reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>2</Order>
+                    <Path>reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>3</Order>
+                    <Path>reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>4</Order>
+                    <Path>reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>5</Order>
+                    <Path>reg add "HKLM\SYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>6</Order>
+                    <Path>reg add "HKLM\SYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+            </RunSynchronous>
+
+            <UserData>
+                <AcceptEula>true</AcceptEula>
+                <FullName>User</FullName>
+                <Organization></Organization>
+            </UserData>
+
+        </component>
+
+        <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64"
+                   publicKeyToken="31bf3856ad364e35" language="neutral"
+                   versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+            <SetupUILanguage>
+                <UILanguage>en-US</UILanguage>
+            </SetupUILanguage>
+            <InputLocale>en-US</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UserLocale>en-US</UserLocale>
+        </component>
+
+    </settings>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         SPECIALIZE
+         ═══════════════════════════════════════════════════════════ -->
+    <settings pass="specialize">
+
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64"
+                   publicKeyToken="31bf3856ad364e35" language="neutral"
+                   versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+            <ComputerName>*</ComputerName>
+            <TimeZone>US Mountain Standard Time</TimeZone>
+        </component>
+
+        <component name="Microsoft-Windows-SQMAPI" processorArchitecture="amd64"
+                   publicKeyToken="31bf3856ad364e35" language="neutral"
+                   versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+            <CEIPEnabled>0</CEIPEnabled>
+        </component>
+
+    </settings>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         OOBE
+         VERSION: prompt-user
+         No account is predefined. Windows will ask for a username
+         and password during OOBE. All cleanup still runs on first login.
+         ═══════════════════════════════════════════════════════════ -->
+    <settings pass="oobeSystem">
+
+        <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64"
+                   publicKeyToken="31bf3856ad364e35" language="neutral"
+                   versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+
+            <OOBE>
+                <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+                <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+                <HideEULAPage>true</HideEULAPage>
+                <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+                <NetworkLocation>Work</NetworkLocation>
+                <ProtectYourPC>3</ProtectYourPC>
+                <UnattendEnableRetailDemo>false</UnattendEnableRetailDemo>
+            </OOBE>
+
+            <!-- No UserAccounts block — Windows will prompt the tech/user to
+                 enter a username and password during OOBE as normal. -->
+
+            <FirstLogonCommands>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>1</Order>
+                    <CommandLine>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /v "AllowTelemetry" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>2</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo" /v "Enabled" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>3</Order>
+                    <CommandLine>reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" /v "SensorPermissionState" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>4</Order>
+                    <CommandLine>reg add "HKLM\SYSTEM\CurrentControlSet\Services\lfsvc\Service\Configuration" /v "Status" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>5</Order>
+                    <CommandLine>reg add "HKLM\SOFTWARE\Policies\Microsoft\FindMyDevice" /v "AllowFindMyDevice" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>6</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Siuf\Rules" /v "NumberOfSIUFInPeriod" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>7</Order>
+                    <CommandLine>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v "AllowCortana" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>8</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SubscribedContent-338388Enabled" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>9</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SubscribedContent-338389Enabled" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>10</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SystemPaneSuggestionsEnabled" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>11</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>12</Order>
+                    <CommandLine>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d 1 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>13</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Policies\Microsoft\Windows\Explorer" /v "DisableSearchBoxSuggestions" /t REG_DWORD /d 1 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>14</Order>
+                    <CommandLine>reg add "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "HideFileExt" /t REG_DWORD /d 0 /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>15</Order>
+                    <CommandLine>reg add "HKCU\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32" /ve /t REG_SZ /d "" /f</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>16</Order>
+                    <CommandLine>cmd /c reg delete "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "OneDrive" /f 2>nul</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>17</Order>
+                    <CommandLine>powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>18</Order>
+                    <CommandLine>sc config DiagTrack start= disabled</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>19</Order>
+                    <CommandLine>sc stop DiagTrack</CommandLine>
+                </SynchronousCommand>
+
+                <SynchronousCommand wcm:action="add">
+                    <Order>20</Order>
+                    <!-- IMPORTANT: Do NOT include 'XboxIdentityProvider' here. It is the Microsoft
+                         Account / Live ID token broker used by the Microsoft Store, OneDrive Personal,
+                         Family Safety, Game Pass, and parental controls. Removing it breaks Store
+                         sign-in for the life of the install. Xbox *Game* surfaces (overlays, GamingApp)
+                         are safe to remove. -->
+                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -Command "Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match 'Clipchamp|BingNews|BingWeather|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Cortana|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|Xbox.TCUI|OutlookForWindows' } | Remove-AppxProvisionedPackage -Online" 2>nul</CommandLine>
+                </SynchronousCommand>
+
+            </FirstLogonCommands>
+
+        </component>
+
+        <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64"
+                   publicKeyToken="31bf3856ad364e35" language="neutral"
+                   versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+            <InputLocale>en-US</InputLocale>
+            <SystemLocale>en-US</SystemLocale>
+            <UILanguage>en-US</UILanguage>
+            <UserLocale>en-US</UserLocale>
+        </component>
+
+    </settings>
+
+</unattend>
