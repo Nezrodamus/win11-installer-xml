@@ -84,16 +84,17 @@
             </RunSynchronous>
 
             <UserData>
-                <!-- Generic Windows 11 PRO edition key. This is a Microsoft-published
-                     placeholder, NOT a license: it only tells Setup which edition to
-                     install and skips the "enter a product key" page during an
-                     unattended install. The machine activates automatically from its
-                     existing digital license once online (e.g. a Win10 Pro -> Win11 Pro
-                     entitlement). For HOME machines, swap in: YTMG3-N6DKC-DKB77-7M9GH-8HVX7 -->
-                <ProductKey>
-                    <Key>VK7JG-NPHTM-C97JM-9MPGT-3V66T</Key>
-                    <WillShowUI>Never</WillShowUI>
-                </ProductKey>
+                <!-- No <ProductKey> on purpose. This lets Windows Setup behave like a
+                     normal install for licensing/edition:
+                       * Firmware-embedded (OEM/MSDM) key present  -> Setup reads it from
+                         the BIOS, auto-selects that edition, and never prompts.
+                       * No firmware key (e.g. a digital-license-only / upgraded machine)
+                         -> Setup shows the edition picker (choose Home/Pro/etc.) and a
+                         product-key page you can SKIP via "I don't have a product key".
+                         Activation then comes from the machine's existing digital license
+                         once it is online, or you can enter a key later in the OS.
+                     Adding a key here would FORCE one edition and suppress both the
+                     auto-detect and the edition choice, so it is intentionally omitted. -->
                 <AcceptEula>true</AcceptEula>
                 <FullName>User</FullName>
                 <Organization></Organization>
