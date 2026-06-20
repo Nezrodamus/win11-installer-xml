@@ -196,7 +196,7 @@ set "SRCXML=!HERE!autounattend_predefined-user.xml"
 set "DSTXML=!DRIVE!:\autounattend.xml"
 echo.
 echo  %DIM%  Working on it...%RST%
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$t=(Get-Content -LiteralPath $env:SRCXML -Raw) -replace '<Name>User</Name>',('<Name>'+$env:ACCT+'</Name>') -replace '<DisplayName>User</DisplayName>',('<DisplayName>'+$env:ACCT+'</DisplayName>') -replace '<FullName>User</FullName>',('<FullName>'+$env:ACCT+'</FullName>'); [System.IO.File]::WriteAllText($env:DSTXML,$t,(New-Object System.Text.UTF8Encoding($false)))"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$enc=New-Object System.Text.UTF8Encoding($false); $t=[System.IO.File]::ReadAllText($env:SRCXML,$enc) -replace '<Name>User</Name>',('<Name>'+$env:ACCT+'</Name>') -replace '<DisplayName>User</DisplayName>',('<DisplayName>'+$env:ACCT+'</DisplayName>') -replace '<FullName>User</FullName>',('<FullName>'+$env:ACCT+'</FullName>'); [System.IO.File]::WriteAllText($env:DSTXML,$t,$enc)"
 
 if not exist "!DSTXML!" (
     echo.
