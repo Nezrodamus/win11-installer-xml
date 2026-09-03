@@ -22,6 +22,17 @@ set "INF=%ESC%[97m"
 set "ACC=%ESC%[95m"
 set "DIM=%ESC%[90m"
 
+REM --- Session log, written next to this script ---
+for /f %%a in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set "STAMP=%%a"
+if not defined STAMP set "STAMP=nodate"
+set "LOGFILE=!HERE!StartHere_!STAMP!.log"
+>"!LOGFILE!" echo === Windows 11 Easy Install USB Helper ===
+call :LOG "Session started"
+REM NOTE: paths built from HERE can contain "!" (this folder does).
+REM Never pass those through "call" - call re-parses its arguments and
+REM would eat them. Write them straight to the log instead.
+>>"!LOGFILE!" echo [%DATE% %TIME%] Script folder: !HERE!
+
 title  Windows 11  -  Easy Install USB Helper
 
 
@@ -105,13 +116,19 @@ if not exist "!DRIVE!:\" (
     goto ASKDRIVE
 )
 
-REM Check it looks like a Windows installer USB
+REM Check it looks like a Windows installer USB.
+REM install.swm is what you get on FAT32 sticks, where the image is
+REM split because FAT32 cannot hold a single file over 4 GB.
 set "ISWIN="
 if exist "!DRIVE!:\sources\install.wim" set "ISWIN=1"
 if exist "!DRIVE!:\sources\install.esd" set "ISWIN=1"
+if exist "!DRIVE!:\sources\install.swm" set "ISWIN=1"
 if exist "!DRIVE!:\setup.exe" set "ISWIN=1"
 
+call :LOG "Drive chosen: !DRIVE!  (looks like Windows media: !ISWIN!)"
+
 if not defined ISWIN (
+    call :LOG "WARNING: drive !DRIVE! does not look like Windows installer media"
     echo.
     echo  %WRN%  Warning: drive !DRIVE! does not look like a Windows%RST%
     echo  %WRN%  installer USB. I did not find the Windows setup files%RST%
@@ -177,8 +194,12 @@ if not defined NAME (
     goto ASKNAME
 )
 set "ACCT=!NAME!"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if ([string]::IsNullOrWhiteSpace($env:ACCT) -or $env:ACCT.Length -gt 20 -or $env:ACCT -match '[\\/:*?<>|\[\];=,+]') { exit 1 } else { exit 0 }"
+REM Whitelist rather than blacklist: letters, digits, space, _ and -,
+REM starting with a letter or digit. This also keeps out characters that
+REM are legal in a Windows name but would break the XML (notably "&").
+powershell -NoProfile -ExecutionPolicy Bypass -Command "if ([string]::IsNullOrWhiteSpace($env:ACCT) -or $env:ACCT.Length -gt 20 -or $env:ACCT -notmatch '^[A-Za-z0-9][A-Za-z0-9 _-]*$') { exit 1 } else { exit 0 }"
 if errorlevel 1 (
+    call :LOG "Rejected account name (invalid characters or too long)"
     echo  %WRN%  That name has characters Windows does not allow, or it%RST%
     echo  %WRN%  is too long. Please try a simpler name - letters and%RST%
     echo  %WRN%  numbers, up to 20 characters.%RST%
@@ -196,17 +217,25 @@ set "SRCXML=!HERE!autounattend_predefined-user.xml"
 set "DSTXML=!DRIVE!:\autounattend.xml"
 echo.
 echo  %DIM%  Working on it...%RST%
+call :LOG "Mode: name now"
+>>"!LOGFILE!" echo [%DATE% %TIME%] Source: !SRCXML!
+call :LOG "Writing to: !DSTXML!"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$enc=New-Object System.Text.UTF8Encoding($false); $t=[System.IO.File]::ReadAllText($env:SRCXML,$enc) -replace '<Name>User</Name>',('<Name>'+$env:ACCT+'</Name>') -replace '<DisplayName>User</DisplayName>',('<DisplayName>'+$env:ACCT+'</DisplayName>') -replace '<FullName>User</FullName>',('<FullName>'+$env:ACCT+'</FullName>'); [System.IO.File]::WriteAllText($env:DSTXML,$t,$enc)"
 
 if not exist "!DSTXML!" (
-    echo.
-    echo  %ERR%  Oh no - something went wrong copying the file to the USB.%RST%
-    echo  %ERR%  Please make sure the USB stick is plugged in and try%RST%
-    echo  %ERR%  again.%RST%
-    echo.
-    pause
-    exit /b 1
+    call :LOG "FAILED: file was not created on the USB"
+    goto WRITEFAIL
 )
+
+REM Verify what actually landed on the USB: it must parse as XML and it
+REM must contain the name we asked for. Existing-file is not good enough.
+echo  %DIM%  Checking the file on the USB...%RST%
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $raw=[System.IO.File]::ReadAllText($env:DSTXML,(New-Object System.Text.UTF8Encoding($false))); $null=[xml]$raw; if ($raw -notmatch [regex]::Escape('<Name>'+$env:ACCT+'</Name>')) { exit 2 }; if ($env:ACCT -ne 'User' -and $raw -match '<Name>User</Name>') { exit 2 }; exit 0 } catch { exit 3 }"
+if errorlevel 1 (
+    call :LOG "FAILED: verification of !DSTXML! did not pass"
+    goto VERIFYFAIL
+)
+call :LOG "Verified OK: valid XML and account name is !NAME!"
 set "CHOSEN=the account will be named  !NAME!"
 goto DONE
 
@@ -216,19 +245,58 @@ REM Copy the prompt-during-install version to the USB
 set "DSTXML=!DRIVE!:\autounattend.xml"
 echo.
 echo  %DIM%  Working on it...%RST%
+call :LOG "Mode: name later"
+>>"!LOGFILE!" echo [%DATE% %TIME%] Source: !HERE!autounattend_prompt-user.xml
+call :LOG "Writing to: !DSTXML!"
 copy /y "!HERE!autounattend_prompt-user.xml" "!DSTXML!" >nul
 
 if not exist "!DSTXML!" (
-    echo.
-    echo  %ERR%  Oh no - something went wrong copying the file to the USB.%RST%
-    echo  %ERR%  Please make sure the USB stick is plugged in and try%RST%
-    echo  %ERR%  again.%RST%
-    echo.
-    pause
-    exit /b 1
+    call :LOG "FAILED: file was not created on the USB"
+    goto WRITEFAIL
 )
+
+REM Same verification as the other branch: must parse as XML, and must
+REM still contain the OOBE block that skips the Microsoft account screens.
+echo  %DIM%  Checking the file on the USB...%RST%
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $raw=[System.IO.File]::ReadAllText($env:DSTXML,(New-Object System.Text.UTF8Encoding($false))); $null=[xml]$raw; if ($raw -notmatch 'HideOnlineAccountScreens') { exit 2 }; exit 0 } catch { exit 3 }"
+if errorlevel 1 (
+    call :LOG "FAILED: verification of !DSTXML! did not pass"
+    goto VERIFYFAIL
+)
+call :LOG "Verified OK: valid XML, Windows will prompt for the name"
 set "CHOSEN=Windows will ASK for the account name during install"
 goto DONE
+
+
+:WRITEFAIL
+echo.
+echo  %ERR%  Oh no - something went wrong copying the file to the USB.%RST%
+echo  %ERR%  Please make sure the USB stick is plugged in and try%RST%
+echo  %ERR%  again.%RST%
+echo.
+echo  %DIM%  Details were saved to:%RST%
+echo  %ACC%  !LOGFILE!%RST%
+echo.
+pause
+endlocal
+exit /b 1
+
+
+:VERIFYFAIL
+echo.
+echo  %ERR%  The file was copied, but it did not pass the check.%RST%
+echo  %ERR%  Do NOT use this USB stick to install yet.%RST%
+echo.
+echo  %INF%  The setup file on drive !DRIVE! is either damaged or%RST%
+echo  %INF%  incomplete. Try running this helper again. If it fails%RST%
+echo  %INF%  twice, the USB stick may be faulty or write-protected.%RST%
+echo.
+echo  %DIM%  Details were saved to:%RST%
+echo  %ACC%  !LOGFILE!%RST%
+echo.
+pause
+endlocal
+exit /b 2
 
 
 :DONE
@@ -252,13 +320,22 @@ echo  %INF%   3. Turn that computer on and start it from the USB%RST%
 echo  %INF%      stick (the README explains how if you are not sure).%RST%
 echo  %INF%   4. Windows will install all by itself. Sit back^^!%RST%
 echo.
+echo  %DIM%  A record of this session was saved to:%RST%
+echo  %ACC%  !LOGFILE!%RST%
+echo.
 echo  %DIM%------------------------------------------------------------%RST%
 echo  %INF%  Press any key to close this window. Have a great day^^!%RST%
+call :LOG "Session finished successfully"
 pause >nul
 endlocal
 exit /b 0
 
 
 :LISTDRIVES
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Volume | Where-Object {$_.DriveLetter} | Sort-Object DriveLetter | ForEach-Object { $d=$_.DriveLetter; $m=(Test-Path ('{0}:\sources\install.wim' -f $d)) -or (Test-Path ('{0}:\sources\install.esd' -f $d)) -or (Test-Path ('{0}:\setup.exe' -f $d)); [PSCustomObject]@{ 'Drive letter'=('  {0}' -f $d); 'Name'=$_.FileSystemLabel; 'Size (GB)'=[math]::Round($_.Size/1GB,1); 'Kind'=$_.DriveType; 'Windows USB?'=$(if($m){'YES <=== this one'}else{''}) } } | Format-Table -AutoSize | Out-String | Write-Host"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$o = Get-Volume | Where-Object {$_.DriveLetter} | Sort-Object DriveLetter | ForEach-Object { $d=$_.DriveLetter; $m=(Test-Path ('{0}:\sources\install.wim' -f $d)) -or (Test-Path ('{0}:\sources\install.esd' -f $d)) -or (Test-Path ('{0}:\sources\install.swm' -f $d)) -or (Test-Path ('{0}:\setup.exe' -f $d)); [PSCustomObject]@{ 'Drive letter'=('  {0}' -f $d); 'Name'=$_.FileSystemLabel; 'Size (GB)'=[math]::Round($_.Size/1GB,1); 'Kind'=$_.DriveType; 'Windows USB?'=$(if($m){'YES <=== this one'}else{''}) } } | Format-Table -AutoSize | Out-String; Write-Host $o; try { [System.IO.File]::AppendAllText($env:LOGFILE, $o) } catch {}"
+goto :eof
+
+
+:LOG
+>>"!LOGFILE!" echo [%DATE% %TIME%] %~1
 goto :eof
