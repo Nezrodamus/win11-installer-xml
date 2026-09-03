@@ -4,6 +4,30 @@
     CTC Unattended Windows 11 Install - PROMPT USER variant
     ════════════════════════════════════════════════════════════════════
 
+    ⚠ DO NOT USE ON CURRENT WINDOWS 11 BUILDS - THIS VARIANT FAILS ⚠
+
+        This file sets HideOnlineAccountScreens=true but defines no
+        account, relying on OOBE falling through to its local-account
+        creation page. Microsoft closed that path: bypassnro was removed
+        in 26100.3775 and the remaining local-account routes were shut
+        after it. OOBE now has nowhere to land.
+
+        Observed failure: install completes, machine reboots several
+        times, then stops at
+            "Windows could not complete the installation.
+             To install Windows on this computer, restart the
+             installation."
+
+        Confirmed failing on 26100.8037 (24H2) and 26200.9168 (25H2),
+        September 2026.
+
+        USE autounattend_predefined-user.xml INSTEAD. It defines the
+        account outright, so OOBE never has to create one. START HERE.bat
+        option 1 builds it with whatever name you type.
+
+        Kept in the repo behind a warning rather than deleted, in case a
+        future build or an older ISO restores the old behaviour.
+
     PURPOSE
         Unattended Win11 install that prompts for a username during
         the OOBE account-creation step. All bypasses, telemetry

@@ -163,9 +163,10 @@ echo  %ACC%   [1]  Choose the name NOW%RST%
 echo  %INF%        I will type in the name and Windows will set it up%RST%
 echo  %INF%        all by itself with no questions during install.%RST%
 echo.
-echo  %ACC%   [2]  Choose the name LATER%RST%
-echo  %INF%        Windows will ask for the name while it installs, so%RST%
-echo  %INF%        whoever sets up the computer can type it in then.%RST%
+echo  %ACC%   [2]  Choose the name LATER    %WRN%(no longer works)%RST%
+echo  %INF%        Windows used to ask for the name during install.%RST%
+echo  %WRN%        Current Windows 11 builds removed that screen, so%RST%
+echo  %WRN%        this now fails after the install finishes. Pick [1].%RST%
 echo.
 echo  %DIM%------------------------------------------------------------%RST%
 echo.
@@ -241,6 +242,42 @@ goto DONE
 
 
 :LATER
+REM ------------------------------------------------------------------
+REM  This branch deploys autounattend_prompt-user.xml, which relies on
+REM  OOBE showing a local-account creation page after the online-account
+REM  screens are hidden. Microsoft removed that fall-through: bypassnro
+REM  went away in 26100.3775, and the local-account paths were closed
+REM  further after that. Observed failure: install completes, reboots,
+REM  then OOBE dies with "Windows could not complete the installation."
+REM  Confirmed on 26100.8037 (24H2) and 26200.9168 (25H2), Sept 2026.
+REM  Kept behind a warning rather than deleted, in case a future build
+REM  or an older ISO restores the behaviour.
+REM ------------------------------------------------------------------
+cls
+echo.
+echo  %WRN%============================================================%RST%
+echo  %WRN%   WARNING - this option does not work on current Windows%RST%
+echo  %WRN%============================================================%RST%
+echo.
+echo  %INF%  Windows 11 removed the "create a local account" screen that%RST%
+echo  %INF%  this option depends on. The install will run all the way%RST%
+echo  %INF%  through, reboot a few times, and then stop with:%RST%
+echo.
+echo  %ERR%     "Windows could not complete the installation.%RST%
+echo  %ERR%      To install Windows on this computer, restart the%RST%
+echo  %ERR%      installation."%RST%
+echo.
+echo  %INF%  Confirmed on builds 26100.8037 and 26200.9168.%RST%
+echo.
+echo  %OK%  Choosing the name NOW avoids this completely - the account%RST%
+echo  %OK%  is created by the setup file instead of by Windows.%RST%
+echo.
+echo  %DIM%------------------------------------------------------------%RST%
+echo.
+choice /c YN /n /m "  Use it anyway?  (Y = yes,  N = go back and name it now): "
+if errorlevel 2 goto NOWNAME
+call :LOG "WARNING: operator chose name-later despite the OOBE warning"
+
 REM Copy the prompt-during-install version to the USB
 set "DSTXML=!DRIVE!:\autounattend.xml"
 echo.
@@ -264,7 +301,7 @@ if errorlevel 1 (
     goto VERIFYFAIL
 )
 call :LOG "Verified OK: valid XML, Windows will prompt for the name"
-set "CHOSEN=Windows will ASK for the account name during install"
+set "CHOSEN=Windows will ASK for the name  (WARNING: known to fail on current builds)"
 goto DONE
 
 

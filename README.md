@@ -85,10 +85,36 @@ The helper will ask you one important question:
 
 - **Choose the name NOW** — You type a name (like *Sarah* or *Office*) and
   Windows sets everything up by itself, no questions asked during install.
-- **Choose the name LATER** — Windows will ask for the name *while it installs*,
-  so whoever is setting up the computer can type it in at that moment.
+  **This is the one to use.**
+- **Choose the name LATER** — ⚠️ **This no longer works.** Windows used to ask
+  for the name while it installed; current builds removed that screen.
 
-Either choice is fine — pick whatever is easier for you.
+### ⚠️ Why "name LATER" is broken
+
+Microsoft removed the local-account creation page that this option relied on
+(`bypassnro` went in build 26100.3775, and the remaining routes were closed
+after it). If you pick it, the install runs all the way through and reboots
+several times, then stops with:
+
+> **Windows could not complete the installation.**
+> To install Windows on this computer, restart the installation.
+
+Confirmed failing on **26100.8037** (24H2) and **26200.9168** (25H2) in
+September 2026. The helper now warns you and steers you back to "name NOW".
+
+**If you already hit this error**, you don't have to reinstall. At the error
+screen press **Shift+F10** and run:
+
+```
+del C:\Windows\Panther\unattend.xml
+cd C:\Windows\System32\Sysprep
+sysprep.exe /oobe /reboot
+```
+
+The answer file is cached to `C:\Windows\Panther\unattend.xml` during install
+and OOBE re-reads it, so deleting it first is what stops the failure repeating.
+OOBE then reruns and prompts for an account normally. (If `C:` isn't the install
+volume, check with `diskpart` → `list volume`.)
 
 ---
 

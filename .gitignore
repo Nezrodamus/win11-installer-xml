@@ -31,3 +31,6 @@ memory/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Local media build workspace (24H2 stick rebuild)
+build/
