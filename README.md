@@ -152,3 +152,62 @@ pick the right drive.
 **Can I run it again to change my choice?**
 Yes. Just run `START HERE.bat` again and answer the questions differently. It
 will overwrite the setup file on the USB.
+
+---
+
+## Troubleshooting
+
+### "Let's connect you to a network" and it won't let you past
+
+Windows removed the local-account option from this screen. To get past it,
+press **Shift + F10** to open a command prompt and run:
+
+```
+start ms-cxh:localonly
+```
+
+That opens the local-account creation dialog directly — no reboot, and it asks
+you for the account name. Confirmed working on build 26100.8037.
+
+If that does nothing (Microsoft has been closing these routes build by build):
+
+```
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f
+shutdown /r /t 0
+```
+
+It reboots back to OOBE, where the network page now offers **"I don't have
+internet"** → **"Continue with limited setup"**. The old `oobe\bypassnro`
+*script* was removed in build 26100.3775, but setting the value by hand still
+works.
+
+### Windows installs, reboots, then won't start
+
+Two causes seen in the field, both worth checking in this order:
+
+1. **Storage controller in RAID mode.** Dell machines in particular ship with
+   SATA Operation set to *RAID On*. Setup can see the drive using drivers loaded
+   into its own boot environment, but the installed Windows has no driver for
+   that controller and cannot mount its own boot volume — you get Startup Repair
+   and "your device ran into a problem". Fix: BIOS → SATA Operation → **AHCI**,
+   then reinstall. ⚠️ If the machine has a genuine RAID array, switching modes
+   makes that array inaccessible — check before changing it.
+
+2. **A bad answer file.** If an answer file names a component that isn't in the
+   Windows image, that whole pass fails, and a failed `specialize` pass stops the
+   machine before it ever reaches setup screens. To test, temporarily replace
+   `autounattend.xml` on the USB with one containing only the `windowsPE`
+   hardware bypasses. If that boots, the fault is in the `specialize` or
+   `oobeSystem` sections.
+
+### Getting the logs
+
+The installer writes logs that name the actual failure instead of leaving you
+guessing:
+
+- **Failure during install** — press Shift+F10 *at the error, before rebooting*:
+  `type X:\Windows\Panther\setuperr.log` (`X:` is the temporary boot drive)
+- **Failure after install completes** —
+  `C:\Windows\Panther\setuperr.log` on the installed drive. In the recovery
+  environment `C:` may be a different letter; check with `diskpart` →
+  `list volume`.

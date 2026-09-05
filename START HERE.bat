@@ -357,6 +357,14 @@ echo  %INF%   3. Turn that computer on and start it from the USB%RST%
 echo  %INF%      stick (the README explains how if you are not sure).%RST%
 echo  %INF%   4. Windows will install all by itself. Sit back^^!%RST%
 echo.
+echo  %TTL%  If Windows asks you to connect to the internet:%RST%
+echo  %INF%   Press  %ACC%Shift + F10%INF%  to open a black command window,%RST%
+echo  %INF%   type this and press Enter:%RST%
+echo  %ACC%      start ms-cxh:localonly%RST%
+echo  %INF%   That brings up the "make a local account" box.%RST%
+echo.
+echo  %DIM%------------------------------------------------------------%RST%
+echo.
 echo  %DIM%  A record of this session was saved to:%RST%
 echo  %ACC%  !LOGFILE!%RST%
 echo.

@@ -128,10 +128,79 @@
             <TimeZone>US Mountain Standard Time</TimeZone>
         </component>
 
-        <component name="Microsoft-Windows-SQMAPI" processorArchitecture="amd64"
+        <!-- ════════════════════════════════════════════════════════════
+             REMOVED 2026-09-05: Microsoft-Windows-SQMAPI / CEIPEnabled.
+
+             An answer file that names a component which is not present in
+             the image fails that pass, and a failed specialize pass stops
+             the machine before it ever reaches OOBE. Bisected on real
+             hardware (XPS 15 9550, build 26100.8037): the full answer file
+             installed but would not boot; a windowsPE-only file booted
+             fine. SQMAPI is legacy and was the only unusual thing here.
+
+             Nothing is lost by dropping it - CEIPEnabled duplicated
+             AllowTelemetry=0, which is set below and by policy.
+             ════════════════════════════════════════════════════════════ -->
+
+        <!-- Privacy settings applied HERE, in specialize, rather than in
+             FirstLogonCommands. FirstLogonCommands run AFTER OOBE, so the
+             user was still shown the privacy questions and their answers
+             took effect first. Setting them here means the page is skipped
+             and the values are already correct. -->
+        <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64"
                    publicKeyToken="31bf3856ad364e35" language="neutral"
                    versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
-            <CEIPEnabled>0</CEIPEnabled>
+            <RunSynchronous>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>1</Order>
+                    <Description>Skip the OOBE privacy questions entirely</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\OOBE" /v "DisablePrivacyExperience" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>2</Order>
+                    <Description>Diagnostic data off</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection" /v "AllowTelemetry" /t REG_DWORD /d 0 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>3</Order>
+                    <Description>Location services off</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}" /v "SensorPermissionState" /t REG_DWORD /d 0 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>4</Order>
+                    <Description>Location service disabled</Description>
+                    <Path>reg add "HKLM\SYSTEM\CurrentControlSet\Services\lfsvc\Service\Configuration" /v "Status" /t REG_DWORD /d 0 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>5</Order>
+                    <Description>Find My Device off</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\FindMyDevice" /v "AllowFindMyDevice" /t REG_DWORD /d 0 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>6</Order>
+                    <Description>Tailored experiences and advertising ID off, machine-wide</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>7</Order>
+                    <Description>Advertising ID off by policy</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo" /v "DisabledByGroupPolicy" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>8</Order>
+                    <Description>Inking and typing personalisation off</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\InputPersonalization" /v "RestrictImplicitTextCollection" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+
+            </RunSynchronous>
         </component>
 
     </settings>
