@@ -115,6 +115,52 @@ if ($infs.Count -eq 0) {
 }
 Write-Log "found $($infs.Count) .inf files to inject"
 
+# ------------------------------------------------------------------
+#  Coverage report
+#
+#  Injecting takes many minutes per image index, so it is worth knowing
+#  BEFORE starting whether the set actually covers the two classes that
+#  matter. A build with no network driver is the failure that wastes a
+#  whole trip: the machine installs, has no adapter, and therefore cannot
+#  reach Windows Update to fetch the adapter driver.
+# ------------------------------------------------------------------
+$classes = @{}
+foreach ($inf in $infs) {
+    # INFs are variously ANSI, UTF-8 and UTF-16; read raw and regex rather
+    # than relying on line-based parsing to guess the encoding.
+    try   { $text = Get-Content -LiteralPath $inf.FullName -Raw -ErrorAction Stop }
+    catch { $text = '' }
+    $m = [regex]::Match($text, '(?im)^\s*Class\s*=\s*([A-Za-z0-9_]+)')
+    $name = if ($m.Success) { $m.Groups[1].Value } else { 'Unknown' }
+    if (-not $classes.ContainsKey($name)) { $classes[$name] = 0 }
+    $classes[$name]++
+}
+
+Write-Log "driver classes found:"
+foreach ($k in ($classes.Keys | Sort-Object)) {
+    Write-Log ("    {0,-16} {1}" -f $k, $classes[$k])
+}
+
+$hasNet     = $classes.ContainsKey('Net')
+$hasStorage = $classes.ContainsKey('HDC') -or $classes.ContainsKey('SCSIAdapter')
+
+if (-not $hasNet) {
+    Write-Log "" 'WARN'
+    Write-Log "NO NETWORK DRIVER (Class=Net) IN THIS SET." 'WARN'
+    Write-Log "The machine may finish with no adapter, and with no network it" 'WARN'
+    Write-Log "cannot reach Windows Update to fetch one. See drivers\SOURCES.md." 'WARN'
+    Write-Log "" 'WARN'
+} else {
+    Write-Log "network drivers present ($($classes['Net'])) - good"
+}
+
+if (-not $hasStorage) {
+    Write-Log "no storage driver (Class=HDC/SCSIAdapter). Only needed if Setup" 'WARN'
+    Write-Log "reports 'we couldn't find any drives' - typically Intel RST/VMD." 'WARN'
+} else {
+    Write-Log "storage drivers present - good"
+}
+
 # Clear any stale mount left by an interrupted run, or DISM refuses to mount.
 Write-Log "clearing stale mount points"
 & dism.exe /English /Cleanup-Mountpoints | Out-Null
