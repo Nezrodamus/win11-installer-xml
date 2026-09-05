@@ -39,3 +39,4 @@ build/
 # redistribute. Keep the README, ignore the drivers themselves.
 drivers/*
 !drivers/README.txt
+!drivers/*.md
