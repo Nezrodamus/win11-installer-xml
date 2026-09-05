@@ -34,3 +34,8 @@ desktop.ini
 
 # Local media build workspace (24H2 stick rebuild)
 build/
+
+# Driver drop folder - vendor blobs are large and not ours to
+# redistribute. Keep the README, ignore the drivers themselves.
+drivers/*
+!drivers/README.txt
