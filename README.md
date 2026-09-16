@@ -85,36 +85,31 @@ The helper will ask you one important question:
 
 - **Choose the name NOW** — You type a name (like *Sarah* or *Office*) and
   Windows sets everything up by itself, no questions asked during install.
-  **This is the one to use.**
-- **Choose the name LATER** — ⚠️ **This no longer works.** Windows used to ask
-  for the name while it installed; current builds removed that screen.
+  This is the most hands-off option.
+- **Choose the name LATER** — Windows asks for the name *while it installs*, so
+  whoever sets the computer up types it in then. Costs you two extra clicks.
 
-### ⚠️ Why "name LATER" is broken
+### If you pick "name LATER"
 
-Microsoft removed the local-account creation page that this option relied on
-(`bypassnro` went in build 26100.3775, and the remaining routes were closed
-after it). If you pick it, the install runs all the way through and reboots
-several times, then stops with:
+During setup Windows will ask you to connect to the internet. Click:
 
-> **Windows could not complete the installation.**
-> To install Windows on this computer, restart the installation.
+> **"I don't have internet"** → **"Continue with limited setup"**
 
-Confirmed failing on **26100.8037** (24H2) and **26200.9168** (25H2) in
-September 2026. The helper now warns you and steers you back to "name NOW".
+Then type the account name. Everything else still happens automatically.
 
-**If you already hit this error**, you don't have to reinstall. At the error
-screen press **Shift+F10** and run:
+⚠️ **This option was broken until 2026-09-16 and has just been reworked.**
+The old version hid both the Microsoft-account screen *and* the network screen
+while defining no account, which left Windows setup with nowhere to go — the
+install finished, rebooted, and stopped at *"Windows could not complete the
+installation."* The fix leaves the network screen visible and pre-sets the
+`BypassNRO` value so **"I don't have internet"** is offered.
 
-```
-del C:\Windows\Panther\unattend.xml
-cd C:\Windows\System32\Sysprep
-sysprep.exe /oobe /reboot
-```
+**It has not yet been proven on a real machine.** Try it on a test PC before
+using it on a customer's. "Name NOW" is the safe choice — it defines the account
+in the setup file, so it cannot hit this class of problem at all.
 
-The answer file is cached to `C:\Windows\Panther\unattend.xml` during install
-and OOBE re-reads it, so deleting it first is what stops the failure repeating.
-OOBE then reruns and prompts for an account normally. (If `C:` isn't the install
-volume, check with `diskpart` → `list volume`.)
+If it ever does get stuck on the network screen, press **Shift+F10** and run
+`start ms-cxh:localonly` — see Troubleshooting below.
 
 ---
 

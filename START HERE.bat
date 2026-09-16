@@ -163,10 +163,10 @@ echo  %ACC%   [1]  Choose the name NOW%RST%
 echo  %INF%        I will type in the name and Windows will set it up%RST%
 echo  %INF%        all by itself with no questions during install.%RST%
 echo.
-echo  %ACC%   [2]  Choose the name LATER    %WRN%(no longer works)%RST%
-echo  %INF%        Windows used to ask for the name during install.%RST%
-echo  %WRN%        Current Windows 11 builds removed that screen, so%RST%
-echo  %WRN%        this now fails after the install finishes. Pick [1].%RST%
+echo  %ACC%   [2]  Choose the name LATER    %WRN%(needs 2 clicks)%RST%
+echo  %INF%        Windows asks for the name while it installs. You%RST%
+echo  %INF%        click "I don't have internet", then "Continue with%RST%
+echo  %INF%        limited setup", then type the name.%RST%
 echo.
 echo  %DIM%------------------------------------------------------------%RST%
 echo.
@@ -243,40 +243,45 @@ goto DONE
 
 :LATER
 REM ------------------------------------------------------------------
-REM  This branch deploys autounattend_prompt-user.xml, which relies on
-REM  OOBE showing a local-account creation page after the online-account
-REM  screens are hidden. Microsoft removed that fall-through: bypassnro
-REM  went away in 26100.3775, and the local-account paths were closed
-REM  further after that. Observed failure: install completes, reboots,
-REM  then OOBE dies with "Windows could not complete the installation."
-REM  Confirmed on 26100.8037 (24H2) and 26200.9168 (25H2), Sept 2026.
-REM  Kept behind a warning rather than deleted, in case a future build
-REM  or an older ISO restores the behaviour.
+REM  Deploys autounattend_prompt-user.xml. Reworked 2026-09-16.
+REM
+REM  The old version set HideOnlineAccountScreens AND
+REM  HideWirelessSetupInOOBE with no account defined, which removed both
+REM  routes to a local account and stranded OOBE - install completed,
+REM  rebooted, then died with "Windows could not complete the
+REM  installation" on 26100.8037 and 26200.9168.
+REM
+REM  Now: both settings removed so the network page shows, and the
+REM  specialize pass sets BypassNRO=1 so "I don't have internet" is
+REM  offered on it. Not yet proven on hardware, hence the confirm below.
 REM ------------------------------------------------------------------
 cls
 echo.
-echo  %WRN%============================================================%RST%
-echo  %WRN%   WARNING - this option does not work on current Windows%RST%
-echo  %WRN%============================================================%RST%
+echo  %TTL%============================================================%RST%
+echo  %TTL%   Heads up - this option needs a couple of clicks%RST%
+echo  %TTL%============================================================%RST%
 echo.
-echo  %INF%  Windows 11 removed the "create a local account" screen that%RST%
-echo  %INF%  this option depends on. The install will run all the way%RST%
-echo  %INF%  through, reboot a few times, and then stop with:%RST%
+echo  %INF%  Windows will ask for the account name while it installs.%RST%
+echo  %INF%  When it asks you to connect to the internet, click:%RST%
 echo.
-echo  %ERR%     "Windows could not complete the installation.%RST%
-echo  %ERR%      To install Windows on this computer, restart the%RST%
-echo  %ERR%      installation."%RST%
+echo  %ACC%     "I don't have internet"%RST%
+echo  %ACC%     then  "Continue with limited setup"%RST%
 echo.
-echo  %INF%  Confirmed on builds 26100.8037 and 26200.9168.%RST%
+echo  %INF%  Then type the name you want. Everything else still happens%RST%
+echo  %INF%  automatically.%RST%
 echo.
-echo  %OK%  Choosing the name NOW avoids this completely - the account%RST%
-echo  %OK%  is created by the setup file instead of by Windows.%RST%
+echo  %WRN%  NOTE: this option was broken until recently and has just%RST%
+echo  %WRN%  been reworked. It has not been proven on a real machine%RST%
+echo  %WRN%  yet, so try it on a test PC before a customer's.%RST%
+echo.
+echo  %INF%  If it ever gets stuck asking for internet, press%RST%
+echo  %INF%  %ACC%Shift + F10%INF% and type:  %ACC%start ms-cxh:localonly%RST%
 echo.
 echo  %DIM%------------------------------------------------------------%RST%
 echo.
-choice /c YN /n /m "  Use it anyway?  (Y = yes,  N = go back and name it now): "
+choice /c YN /n /m "  Go ahead with this option?  (Y = yes,  N = name it now instead): "
 if errorlevel 2 goto NOWNAME
-call :LOG "WARNING: operator chose name-later despite the OOBE warning"
+call :LOG "Operator chose name-later (reworked variant, unproven on hardware)"
 
 REM Copy the prompt-during-install version to the USB
 set "DSTXML=!DRIVE!:\autounattend.xml"
@@ -295,13 +300,13 @@ if not exist "!DSTXML!" (
 REM Same verification as the other branch: must parse as XML, and must
 REM still contain the OOBE block that skips the Microsoft account screens.
 echo  %DIM%  Checking the file on the USB...%RST%
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $raw=[System.IO.File]::ReadAllText($env:DSTXML,(New-Object System.Text.UTF8Encoding($false))); $null=[xml]$raw; if ($raw -notmatch 'HideOnlineAccountScreens') { exit 2 }; exit 0 } catch { exit 3 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $raw=[System.IO.File]::ReadAllText($env:DSTXML,(New-Object System.Text.UTF8Encoding($false))); $null=[xml]$raw; if ($raw -notmatch 'BypassNRO') { exit 2 }; if ($raw -match '<HideOnlineAccountScreens>') { exit 2 }; exit 0 } catch { exit 3 }"
 if errorlevel 1 (
     call :LOG "FAILED: verification of !DSTXML! did not pass"
     goto VERIFYFAIL
 )
 call :LOG "Verified OK: valid XML, Windows will prompt for the name"
-set "CHOSEN=Windows will ASK for the name  (WARNING: known to fail on current builds)"
+set "CHOSEN=Windows will ASK for the name during install"
 goto DONE
 
 

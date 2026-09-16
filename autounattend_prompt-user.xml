@@ -4,29 +4,43 @@
     CTC Unattended Windows 11 Install - PROMPT USER variant
     ════════════════════════════════════════════════════════════════════
 
-    ⚠ DO NOT USE ON CURRENT WINDOWS 11 BUILDS - THIS VARIANT FAILS ⚠
+    ⚠ REWORKED 2026-09-16 - FIXED BY DESIGN, NOT YET FIELD-TESTED ⚠
 
-        This file sets HideOnlineAccountScreens=true but defines no
-        account, relying on OOBE falling through to its local-account
-        creation page. Microsoft closed that path: bypassnro was removed
-        in 26100.3775 and the remaining local-account routes were shut
-        after it. OOBE now has nowhere to land.
-
-        Observed failure: install completes, machine reboots several
-        times, then stops at
+        WHAT WENT WRONG BEFORE
+        This file used to set HideOnlineAccountScreens=true AND
+        HideWirelessSetupInOOBE=true while defining no account. Between
+        them those removed both routes to a local account - the
+        Microsoft-account path and the network page where "I don't have
+        internet" lives - so OOBE had nowhere to land. The install
+        completed, rebooted, and stopped at
             "Windows could not complete the installation.
              To install Windows on this computer, restart the
              installation."
+        Confirmed failing that way on 26100.8037 (24H2) and 26200.9168
+        (25H2).
 
-        Confirmed failing on 26100.8037 (24H2) and 26200.9168 (25H2),
-        September 2026.
+        WHAT CHANGED
+        1. Both of those settings are gone, so the network page is shown.
+        2. The specialize pass now sets BypassNRO=1 before OOBE starts,
+           which puts "I don't have internet" back on that page.
 
-        USE autounattend_predefined-user.xml INSTEAD. It defines the
-        account outright, so OOBE never has to create one. START HERE.bat
-        option 1 builds it with whatever name you type.
+        Microsoft removed the bypassnro.cmd SCRIPT in 26100.3775, but the
+        registry value still works when written directly.
 
-        Kept in the repo behind a warning rather than deleted, in case a
-        future build or an older ISO restores the old behaviour.
+        EXPECTED FLOW
+        Network page -> "I don't have internet" -> "Continue with limited
+        setup" -> type the account name. Everything else stays automatic:
+        hardware bypasses, debloat, telemetry off, privacy page skipped.
+
+        STATUS
+        Not yet proven on hardware. This variant has failed twice before,
+        so verify on a test machine before using it on a customer's.
+        autounattend_predefined-user.xml remains the safe choice - it
+        defines the account outright and cannot hit this class of problem.
+
+        IF IT STILL STRANDS AT THE NETWORK PAGE
+        Shift+F10, then:  start ms-cxh:localonly
+        Confirmed working on 26100.8037.
 
     PURPOSE
         Unattended Win11 install that prompts for a username during
@@ -215,6 +229,30 @@
                     <Path>reg add "HKLM\SOFTWARE\Policies\Microsoft\InputPersonalization" /v "RestrictImplicitTextCollection" /t REG_DWORD /d 1 /f</Path>
                 </RunSynchronousCommand>
 
+                <!-- ════════════════════════════════════════════════════════
+                     THIS IS WHAT MAKES THE "TYPE THE NAME" FLOW WORK.
+
+                     Setting BypassNRO before OOBE starts puts the "I don't
+                     have internet" option back on the network page, which
+                     leads to "Continue with limited setup" and then the
+                     local-account creation page.
+
+                     Microsoft removed the bypassnro.cmd SCRIPT in build
+                     26100.3775, but the registry value it used to write
+                     still works when set directly - which is what this does,
+                     early enough that OOBE sees it on first run with no
+                     Shift+F10 needed.
+
+                     If a future build closes this too, the manual escape is
+                     Shift+F10 at the network page then:  start ms-cxh:localonly
+                     (confirmed working on 26100.8037).
+                     ════════════════════════════════════════════════════════ -->
+                <RunSynchronousCommand wcm:action="add">
+                    <Order>9</Order>
+                    <Description>Allow a local account without a network connection</Description>
+                    <Path>reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d 1 /f</Path>
+                </RunSynchronousCommand>
+
             </RunSynchronous>
         </component>
 
@@ -232,9 +270,29 @@
                    publicKeyToken="31bf3856ad364e35" language="neutral"
                    versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
 
+            <!-- ════════════════════════════════════════════════════════
+                 DO NOT set HideOnlineAccountScreens or
+                 HideWirelessSetupInOOBE here.
+
+                 Those two were what broke this variant. Between them they
+                 removed BOTH routes to a local account:
+
+                   HideOnlineAccountScreens  killed the Microsoft-account
+                                             path, expecting OOBE to fall
+                                             through to a local-account
+                                             page that no longer exists
+                   HideWirelessSetupInOOBE   killed the network page, which
+                                             is where "I don't have
+                                             internet" lives
+
+                 With no account defined either, OOBE had nowhere to go and
+                 the install died with "Windows could not complete the
+                 installation."
+
+                 Leaving the network page visible, with BypassNRO set during
+                 specialize, gives it somewhere to go.
+                 ════════════════════════════════════════════════════════ -->
             <OOBE>
-                <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
-                <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
                 <HideEULAPage>true</HideEULAPage>
                 <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
                 <NetworkLocation>Work</NetworkLocation>
@@ -242,8 +300,10 @@
                 <UnattendEnableRetailDemo>false</UnattendEnableRetailDemo>
             </OOBE>
 
-            <!-- No UserAccounts block — Windows will prompt the tech/user to
-                 enter a username and password during OOBE as normal. -->
+            <!-- No UserAccounts block on purpose — the whole point of this
+                 variant is that whoever sets the machine up types the name.
+                 See the specialize pass for the BypassNRO value that makes
+                 the local-account route reachable. -->
 
             <FirstLogonCommands>
 
