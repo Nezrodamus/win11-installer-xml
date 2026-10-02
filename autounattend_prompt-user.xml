@@ -4,41 +4,43 @@
     CTC Unattended Windows 11 Install - PROMPT USER variant
     ════════════════════════════════════════════════════════════════════
 
-    ⚠ REWORKED 2026-09-16 - FIXED BY DESIGN, NOT YET FIELD-TESTED ⚠
+    HISTORY - READ THIS BEFORE RE-DIAGNOSING ANYTHING
 
-        WHAT WENT WRONG BEFORE
-        This file used to set HideOnlineAccountScreens=true AND
-        HideWirelessSetupInOOBE=true while defining no account. Between
-        them those removed both routes to a local account - the
-        Microsoft-account path and the network page where "I don't have
-        internet" lives - so OOBE had nowhere to land. The install
-        completed, rebooted, and stopped at
-            "Windows could not complete the installation.
-             To install Windows on this computer, restart the
-             installation."
-        Confirmed failing that way on 26100.8037 (24H2) and 26200.9168
-        (25H2).
+        This file was blamed through September 2026 for stranding OOBE at
+            "Windows could not complete the installation."
+        on a Dell XPS 15 9550 and a Lenovo. The theory was that
+        HideOnlineAccountScreens=true plus HideWirelessSetupInOOBE=true,
+        with no predefined account, removed every route to a local account.
 
-        WHAT CHANGED
-        1. Both of those settings are gone, so the network page is shown.
-        2. The specialize pass now sets BypassNRO=1 before OOBE starts,
-           which puts "I don't have internet" back on that page.
+        THAT THEORY WAS WRONG.
 
-        Microsoft removed the bypassnro.cmd SCRIPT in 26100.3775, but the
-        registry value still works when written directly.
+        On 2026-10-02 a known-good stick was recovered (HP 15-dw3058cl,
+        build 26100.8037) that installed cleanly end to end. Its answer
+        file has BOTH of those settings and no predefined account - the
+        exact combination that was supposedly fatal. Its OOBE and
+        specialize blocks are byte-identical to the ones here.
 
-        EXPECTED FLOW
-        Network page -> "I don't have internet" -> "Continue with limited
-        setup" -> type the account name. Everything else stays automatic:
-        hardware bypasses, debloat, telemetry off, privacy page skipped.
+        THE ONLY DIFFERENCE was five extra FirstLogonCommands added in
+        commit 6e1bbbc, and the regression was this fragment:
 
-        STATUS
-        Not yet proven on hardware. This variant has failed twice before,
-        so verify on a test machine before using it on a customer's.
-        autounattend_predefined-user.xml remains the safe choice - it
-        defines the account outright and cannot hit this class of problem.
+            Get-AppxPackage -AllUsers | Remove-AppxPackage -AllUsers
 
-        IF IT STILL STRANDS AT THE NETWORK PAGE
+        That strips LIVE installed packages for every user - including the
+        account whose shell is initialising at that moment - and the list
+        covered shell-adjacent packages (Cortana 549981C3F5F10, Copilot,
+        DevHome, windowscommunicationsapps). The working file only ever
+        removed PROVISIONED packages, which affects future users and is
+        safe. That fragment is now gone; see the AppX command below.
+
+        Removing live packages belongs in WindowsCleanup.ps1, which runs on
+        a settled desktop where nothing is mid-initialisation.
+
+        ALSO CHANGED 2026-09-16 (harmless, kept): BypassNRO=1 is set in the
+        specialize pass, which puts "I don't have internet" back on the
+        network page. bypassnro.cmd was removed in 26100.3775 but the
+        registry value still works. Not related to the failure above.
+
+        IF OOBE EVER STRANDS AT THE NETWORK PAGE
         Shift+F10, then:  start ms-cxh:localonly
         Confirmed working on 26100.8037.
 
@@ -409,7 +411,7 @@
                          Family Safety, Game Pass, and parental controls. Removing it breaks Store
                          sign-in for the life of the install. Xbox *Game* surfaces (overlays, GamingApp)
                          are safe to remove. -->
-                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$p='Clipchamp|BingNews|BingWeather|BingSearch|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Xbox.TCUI|549981C3F5F10|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|OutlookForWindows|MicrosoftOfficeHub|PowerAutomateDesktop|WindowsMaps|Microsoft.People|Microsoft.Wallet|MicrosoftJournal|Whiteboard|SkypeApp|WindowsFeedbackHub|DevHome|Microsoft.Copilot|LinkedIn|WhatsApp|CandyCrush|king.com|Spotify|Disney|Facebook|Instagram|TikTok|Twitter|Netflix|PrimeVideo|Dolby'; Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match $p } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue; Get-AppxPackage -AllUsers | Where-Object { $_.Name -match $p } | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue" 2>nul</CommandLine>
+                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$p='Clipchamp|BingNews|BingWeather|BingSearch|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Xbox.TCUI|549981C3F5F10|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|OutlookForWindows|MicrosoftOfficeHub|PowerAutomateDesktop|WindowsMaps|Microsoft.People|Microsoft.Wallet|MicrosoftJournal|Whiteboard|SkypeApp|WindowsFeedbackHub|DevHome|Microsoft.Copilot|LinkedIn|WhatsApp|CandyCrush|king.com|Spotify|Disney|Facebook|Instagram|TikTok|Twitter|Netflix|PrimeVideo|Dolby'; Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match $p } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue" 2>nul</CommandLine>
                 </SynchronousCommand>
 
                 <SynchronousCommand wcm:action="add">
@@ -431,7 +433,7 @@
                     <Order>23</Order>
                     <!-- Remove OneDrive: disable the sync engine by policy, drop its
                          per-user setup Run entry, and uninstall the setup stub. -->
-                    <CommandLine>cmd /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v "DisableFileSyncNGSC" /t REG_DWORD /d 1 /f &amp; reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f 2>nul &amp; if exist "%SystemRoot%\SysWOW64\OneDriveSetup.exe" "%SystemRoot%\SysWOW64\OneDriveSetup.exe" /uninstall &amp; if exist "%SystemRoot%\System32\OneDriveSetup.exe" "%SystemRoot%\System32\OneDriveSetup.exe" /uninstall</CommandLine>
+                    <CommandLine>cmd /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v "DisableFileSyncNGSC" /t REG_DWORD /d 1 /f &amp; reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f 2>nul &amp; if exist "%SystemRoot%\SysWOW64\OneDriveSetup.exe" start /b "" "%SystemRoot%\SysWOW64\OneDriveSetup.exe" /uninstall &amp; if exist "%SystemRoot%\System32\OneDriveSetup.exe" start /b "" "%SystemRoot%\System32\OneDriveSetup.exe" /uninstall</CommandLine>
                 </SynchronousCommand>
 
                 <SynchronousCommand wcm:action="add">

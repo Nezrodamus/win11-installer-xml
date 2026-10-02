@@ -129,17 +129,22 @@
         </component>
 
         <!-- ════════════════════════════════════════════════════════════
-             REMOVED 2026-09-05: Microsoft-Windows-SQMAPI / CEIPEnabled.
+             Microsoft-Windows-SQMAPI / CEIPEnabled was removed here on
+             2026-09-05 on the theory that it was absent from the image and
+             failing the specialize pass.
 
-             An answer file that names a component which is not present in
-             the image fails that pass, and a failed specialize pass stops
-             the machine before it ever reaches OOBE. Bisected on real
-             hardware (XPS 15 9550, build 26100.8037): the full answer file
-             installed but would not boot; a windowsPE-only file booted
-             fine. SQMAPI is legacy and was the only unusual thing here.
+             THAT THEORY WAS WRONG. Searching the image's component store
+             directly showed SQMAPI present WITH a settings manifest, so it
+             was always valid and configurable. A known-good answer file
+             recovered on 2026-10-02 (HP 15-dw3058cl, installed cleanly end
+             to end) contains the SQMAPI component too.
 
-             Nothing is lost by dropping it - CEIPEnabled duplicated
-             AllowTelemetry=0, which is set below and by policy.
+             It stays removed only because CEIPEnabled duplicates
+             AllowTelemetry=0, which is set below. Not because it was ever
+             the fault. Do not re-add it expecting to fix anything.
+
+             The actual regression was in FirstLogonCommands - see the AppX
+             note further down.
              ════════════════════════════════════════════════════════════ -->
 
         <!-- Privacy settings applied HERE, in specialize, rather than in
@@ -346,7 +351,7 @@
                          Family Safety, Game Pass, and parental controls. Removing it breaks Store
                          sign-in for the life of the install. Xbox *Game* surfaces (overlays, GamingApp)
                          are safe to remove. -->
-                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$p='Clipchamp|BingNews|BingWeather|BingSearch|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Xbox.TCUI|549981C3F5F10|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|OutlookForWindows|MicrosoftOfficeHub|PowerAutomateDesktop|WindowsMaps|Microsoft.People|Microsoft.Wallet|MicrosoftJournal|Whiteboard|SkypeApp|WindowsFeedbackHub|DevHome|Microsoft.Copilot|LinkedIn|WhatsApp|CandyCrush|king.com|Spotify|Disney|Facebook|Instagram|TikTok|Twitter|Netflix|PrimeVideo|Dolby'; Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match $p } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue; Get-AppxPackage -AllUsers | Where-Object { $_.Name -match $p } | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue" 2>nul</CommandLine>
+                    <CommandLine>cmd /c powershell -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$p='Clipchamp|BingNews|BingWeather|BingSearch|GamingApp|MixedReality|3DViewer|Paint3D|Solitaire|ZuneMusic|ZuneVideo|XboxSpeechToTextOverlay|XboxGamingOverlay|XboxGameOverlay|Xbox.TCUI|549981C3F5F10|Teams|GetHelp|Getstarted|windowscommunicationsapps|YourPhone|OutlookForWindows|MicrosoftOfficeHub|PowerAutomateDesktop|WindowsMaps|Microsoft.People|Microsoft.Wallet|MicrosoftJournal|Whiteboard|SkypeApp|WindowsFeedbackHub|DevHome|Microsoft.Copilot|LinkedIn|WhatsApp|CandyCrush|king.com|Spotify|Disney|Facebook|Instagram|TikTok|Twitter|Netflix|PrimeVideo|Dolby'; Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -match $p } | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue" 2>nul</CommandLine>
                 </SynchronousCommand>
 
                 <SynchronousCommand wcm:action="add">
@@ -368,7 +373,7 @@
                     <Order>23</Order>
                     <!-- Remove OneDrive: disable the sync engine by policy, drop its
                          per-user setup Run entry, and uninstall the setup stub. -->
-                    <CommandLine>cmd /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v "DisableFileSyncNGSC" /t REG_DWORD /d 1 /f &amp; reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f 2>nul &amp; if exist "%SystemRoot%\SysWOW64\OneDriveSetup.exe" "%SystemRoot%\SysWOW64\OneDriveSetup.exe" /uninstall &amp; if exist "%SystemRoot%\System32\OneDriveSetup.exe" "%SystemRoot%\System32\OneDriveSetup.exe" /uninstall</CommandLine>
+                    <CommandLine>cmd /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\OneDrive" /v "DisableFileSyncNGSC" /t REG_DWORD /d 1 /f &amp; reg delete "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f 2>nul &amp; if exist "%SystemRoot%\SysWOW64\OneDriveSetup.exe" start /b "" "%SystemRoot%\SysWOW64\OneDriveSetup.exe" /uninstall &amp; if exist "%SystemRoot%\System32\OneDriveSetup.exe" start /b "" "%SystemRoot%\System32\OneDriveSetup.exe" /uninstall</CommandLine>
                 </SynchronousCommand>
 
                 <SynchronousCommand wcm:action="add">
