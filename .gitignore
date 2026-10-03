@@ -40,3 +40,4 @@ build/
 drivers/*
 !drivers/README.txt
 !drivers/*.md
+!drivers/manifest.json

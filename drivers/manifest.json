@@ -1,0 +1,96 @@
+{
+  "_comment": [
+    "Driver manifest for tools/Get-Drivers.ps1.",
+    "",
+    "Only entries with a 'url' are fetched automatically. Entries with an empty",
+    "url are there on purpose: they document WHAT you need and WHERE to get it,",
+    "for vendors whose download links are not stable enough to hardcode. The",
+    "fetcher prints those as a to-do list rather than pretending to handle them.",
+    "",
+    "Finding a stable URL: HP SoftPaqs are predictable and durable --",
+    "https://ftp.hp.com/pub/softpaq/spNNN501-NNN000/spNNNNNN.exe -- so prefer an",
+    "HP SoftPaq even for a generic Intel driver. Dell (downloads.dell.com) and",
+    "Lenovo (download.lenovo.com/pccbbs) are similar. Intel's own download-centre",
+    "links rotate and are not worth hardcoding.",
+    "",
+    "'class' drives the coverage report. network and storage are the two that",
+    "actually unblock a job; everything else is nice to have.",
+    "",
+    "Run with -Verify to HEAD-check every url without downloading."
+  ],
+
+  "drivers": [
+    {
+      "name": "intel-rst-vmd",
+      "brand": "_universal",
+      "class": "storage",
+      "url": "https://ftp.hp.com/pub/softpaq/sp146501-147000/sp146929.exe",
+      "extractSubdir": "F6",
+      "notes": "Intel RST / VMD. Verified working 2026-10-02: made an invisible NVMe appear on an HP 15-dw3058cl. Covers DEV_9A0B (Tiger Lake), A77F (Alder/Raptor), 467F, 09AB. Driver 19.5.2.1049, Nov 2022 -- does NOT cover Meteor Lake or newer, so refresh when you meet a 2024+ Intel machine."
+    },
+    {
+      "name": "intel-serial-io",
+      "brand": "_universal",
+      "class": "input",
+      "url": "",
+      "searchHint": "HP SoftPaq or vendor page: 'Intel Serial IO' / 'Intel Dynamic Platform'. THE touchpad fix -- the 24H2 image's ialpss2i_i2c_cnl.inf stops at Comet Lake, so Tiger Lake and newer have NO I2C touchpad driver. Highest-value addition after network.",
+      "notes": "Dead touchpad on 11th-gen-and-newer Intel is this, not a fault. AMD (amdi2c.inf) is fine inbox."
+    },
+    {
+      "name": "intel-wifi",
+      "brand": "_universal",
+      "class": "network",
+      "url": "",
+      "searchHint": "Intel Download Center: 'Wi-Fi Drivers for Windows 10 and Windows 11'. One package covers AC 3160/7260/7265/8260/8265/9560 and AX200/AX201/AX210.",
+      "notes": "Biggest coverage per megabyte of anything on this list."
+    },
+    {
+      "name": "intel-ethernet",
+      "brand": "_universal",
+      "class": "network",
+      "url": "",
+      "searchHint": "Intel Download Center: 'Ethernet Adapter Complete Driver Pack'. Covers I210/I217/I218/I219/I225/I226.",
+      "notes": "On most business desktops and laptops."
+    },
+    {
+      "name": "realtek-ethernet",
+      "brand": "_universal",
+      "class": "network",
+      "url": "",
+      "searchHint": "realtek.com/downloads, or an HP/Lenovo SoftPaq. RTL8168/8111/8125.",
+      "notes": "Extremely common on consumer desktops and budget laptops."
+    },
+    {
+      "name": "mediatek-wifi",
+      "brand": "_universal",
+      "class": "network",
+      "url": "",
+      "searchHint": "Vendor page for the specific model. MT7902/MT7921 (RZ608)/MT7922 (RZ616)/MT7925.",
+      "notes": "The 24H2 image contains NO MediaTek driver at all -- no netmtk*.inf, nothing. Verified by enumerating every INF in install.esd and boot.wim. Very common in budget and AMD laptops, and those machines finish install with zero network, which cannot be fixed from the machine."
+    },
+    {
+      "name": "realtek-wifi-8852",
+      "brand": "_universal",
+      "class": "network",
+      "url": "",
+      "searchHint": "Vendor page. RTL8852/8851 are NOT inbox on 24H2.",
+      "notes": "Distinct from Realtek Ethernet. 8822 generally is inbox; 8852/8851 are not."
+    },
+    {
+      "name": "amd-raid",
+      "brand": "_universal",
+      "class": "storage",
+      "url": "",
+      "searchHint": "amd.com/en/support -- 'RAID' driver, files rcraid.sys / rcbottom.sys / rccfg.sys.",
+      "notes": "Only needed for AMD systems actually in RAID mode. AMD has no VMD equivalent, so most AMD machines need nothing here."
+    },
+    {
+      "name": "intel-chipset",
+      "brand": "_universal",
+      "class": "chipset",
+      "url": "",
+      "searchHint": "Intel Download Center: 'Chipset Device Software' (INF Update Utility).",
+      "notes": "Small, cheap to include, occasionally needed on older machines."
+    }
+  ]
+}
